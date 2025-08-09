@@ -16,11 +16,8 @@ class Dictionary:
         index = hash(key) % self.capacity
         current = self.storage[index]
         if current is None:
-            return
-        while self.storage[index].key != key:
-            index = (index + 1) % self.capacity
-            if self.storage[index] is None:
-                raise KeyError("Missing key")
+            raise KeyError("Missing key")
+        index = self.__find_index(index, key)
         self.storage[index] = Node(key, Ellipsis, Ellipsis)
         self.length -= 1
 
@@ -31,6 +28,10 @@ class Dictionary:
             raise KeyError("Missing key")
         if self.storage[index].value is Ellipsis:
             raise KeyError("Missing key")
+        index = self.__find_index(index, key)
+        return self.storage[index].value
+
+    def __find_index(self, index: int, key: Any) -> int:
         while self.storage[index].key != key:
             index = (index + 1) % self.capacity
             if self.storage[index] is None:
@@ -39,7 +40,7 @@ class Dictionary:
                 raise KeyError("Missing key")
         if self.storage[index].value is Ellipsis:
             raise KeyError("Missing key")
-        return self.storage[index].value
+        return index
 
     def __setitem__(self, key: Hashable, value: Any) -> None:
         if self.need_resize():
@@ -80,7 +81,7 @@ class Dictionary:
         self.storage = [None] * self.capacity
         self.length = 0
         for item in old_storage:
-            if not item:
+            if item is None or item.value is Ellipsis:
                 continue
             index = item.hash % self.capacity
             self.__set_item(item, index)
@@ -111,5 +112,6 @@ class Dictionary:
 
     def __iter__(self) -> Iterator[Hashable]:
         for node in self.storage:
-            if node:
-                yield node.key
+            if node is None or node.value is Ellipsis:
+                continue
+            yield node.key
