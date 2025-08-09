@@ -1,7 +1,6 @@
 from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Hashable
-from copy import deepcopy
 from typing import Any
 
 Node = namedtuple("Node", ["key", "hash", "value"])
@@ -15,16 +14,24 @@ class Dictionary:
 
     def __delitem__(self, key: Hashable) -> None:
         index = hash(key) % self.capacity
+        current = self.storage[index]
+        if current is None:
+            return
+        while self.storage[index].key != key:
+            index = (index + 1) % self.capacity
+            if self.storage[index] is None:
+                return
         self.storage[index] = None
 
-    def __getitem__(self, item: Hashable) -> Any:
-        index = hash(item) % self.capacity
+    def __getitem__(self, key: Hashable) -> Any:
+        index = hash(key) % self.capacity
         current = self.storage[index]
-        if not current:
+        if current is None:
             raise KeyError("Missing key")
-        while current.key != item:
+        while self.storage[index].key != key:
             index = (index + 1) % self.capacity
-            current = self.storage[index]
+            if self.storage[index] is None:
+                raise KeyError("Missing key")
         return self.storage[index].value
 
     def __setitem__(self, key: Hashable, value: Any) -> None:
@@ -58,7 +65,7 @@ class Dictionary:
 
     def resize(self) -> None:
         self.capacity *= 2
-        old_storage = deepcopy(self.storage)
+        old_storage = self.storage
         self.storage = [None] * self.capacity
         self.length = 0
         for item in old_storage:
@@ -80,24 +87,16 @@ class Dictionary:
 
     def pop(self, key: Any, default: Any = None) -> Any:
         value = self.get(key, default)
+        if value == default:
+            raise KeyError("Missing key")
         del self[key]
         return value
 
-    def update(self, values: dict[Any, Any] | Dictionary) -> None:
-        for key, value in values.items():
-            self[key] = value
+    def update(self, data: dict[Any, Any] | Dictionary) -> None:
+        for key in data:
+            self[key] = data[key]
 
     def __iter__(self) -> Dictionary:
-        self.counter = -1
-        return self
-
-    def __next__(self) -> Any:
-        self.counter += 1
-        if self.storage[self.counter] is not None:
-            return self.storage[self.counter].key
-        while self.counter < self.capacity:
-            if self.storage[self.counter] is None:
-                self.counter += 1
-            else:
-                return self.storage[self.counter].key
-        raise StopIteration
+        for node in self.storage:
+            if node:
+                yield node.key
